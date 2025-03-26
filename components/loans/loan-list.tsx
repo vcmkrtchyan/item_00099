@@ -8,39 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Edit, CheckCircle, Trash } from "lucide-react"
+import { Plus, Search, Edit, CheckCircle, Trash, Calendar } from "lucide-react"
 import Link from "next/link"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 
 export function LoanList() {
-  const { loans, books, getBook, returnBook, deleteLoan } = useLibrary()
+  const { loans, books, getBook, returnBook, deleteLoan, getLoanStatus } = useLibrary()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [loanToReturn, setLoanToReturn] = useState<string | null>(null)
   const [loanToDelete, setLoanToDelete] = useState<string | null>(null)
-
-  // Helper function to determine the loan status type - MOVED UP before it's used
-  const getLoanStatusType = (loan: (typeof loans)[0]): "returned" | "overdue" | "pending" | "active" => {
-    if (loan.returned) {
-      return "returned"
-    }
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Reset time part for accurate date comparison
-
-    const dueDate = new Date(loan.dueDate)
-    dueDate.setHours(0, 0, 0, 0) // Reset time part for accurate date comparison
-
-    if (dueDate.getTime() < today.getTime()) {
-      return "overdue"
-    } else if (dueDate.getTime() === today.getTime()) {
-      return "pending"
-    } else {
-      return "active"
-    }
-  }
 
   const filteredLoans = loans.filter((loan) => {
     const book = getBook(loan.bookId)
@@ -49,13 +28,14 @@ export function LoanList() {
       loan.borrower.toLowerCase().includes(searchTerm.toLowerCase())
 
     // Get loan status
-    const status = getLoanStatusType(loan)
+    const status = getLoanStatus(loan)
 
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && status === "active") ||
       (statusFilter === "pending" && status === "pending") ||
       (statusFilter === "overdue" && status === "overdue") ||
+      (statusFilter === "scheduled" && status === "scheduled") ||
       (statusFilter === "returned" && loan.returned)
 
     return matchesSearch && matchesStatus
@@ -72,6 +52,7 @@ export function LoanList() {
       toast({
         title: "Book Returned",
         description: book ? `"${book.title}" has been returned successfully.` : "Book has been returned successfully.",
+        variant: "success",
       })
 
       setLoanToReturn(null)
@@ -89,6 +70,7 @@ export function LoanList() {
       toast({
         title: "Loan Deleted",
         description: book ? `Loan for "${book.title}" has been deleted.` : "Loan has been deleted.",
+        variant: "success",
       })
 
       setLoanToDelete(null)
@@ -99,8 +81,8 @@ export function LoanList() {
     return loans.find((loan) => loan.id === id)
   }
 
-  const getLoanStatus = (loan: (typeof loans)[0]) => {
-    const statusType = getLoanStatusType(loan)
+  const getLoanStatusBadge = (loan: (typeof loans)[0]) => {
+    const statusType = getLoanStatus(loan)
 
     switch (statusType) {
       case "returned":
@@ -111,6 +93,13 @@ export function LoanList() {
         return <Badge variant="warning">Pending Return</Badge>
       case "active":
         return <Badge variant="secondary">Active</Badge>
+      case "scheduled":
+        return (
+          <Badge className="bg-purple-500 hover:bg-purple-600">
+            <Calendar className="h-3 w-3 mr-1" />
+            Scheduled
+          </Badge>
+        )
     }
   }
 
@@ -136,6 +125,7 @@ export function LoanList() {
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="pending">Pending Return</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
               <SelectItem value="returned">Returned</SelectItem>
             </SelectContent>
           </Select>
@@ -173,6 +163,8 @@ export function LoanList() {
                 <TableBody>
                   {filteredLoans.map((loan) => {
                     const book = getBook(loan.bookId)
+                    const status = getLoanStatus(loan)
+                    const isScheduled = status === "scheduled"
 
                     return (
                       <TableRow key={loan.id}>
@@ -180,7 +172,7 @@ export function LoanList() {
                         <TableCell>{loan.borrower}</TableCell>
                         <TableCell>{loan.loanDate}</TableCell>
                         <TableCell>{loan.dueDate}</TableCell>
-                        <TableCell>{getLoanStatus(loan)}</TableCell>
+                        <TableCell>{getLoanStatusBadge(loan)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {!loan.returned && (
@@ -192,7 +184,7 @@ export function LoanList() {
                               </Link>
                             )}
 
-                            {!loan.returned && (
+                            {!loan.returned && !isScheduled && (
                               <ConfirmationDialog
                                 open={loanToReturn === loan.id}
                                 onOpenChange={(open) => {

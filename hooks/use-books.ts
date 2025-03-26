@@ -1,4 +1,5 @@
 import { useLocalStorage } from "./use-local-storage"
+import { useLoans } from "./use-loans"
 
 export interface Book {
   id: string
@@ -13,6 +14,7 @@ export interface Book {
 
 export function useBooks() {
   const [books, setBooks] = useLocalStorage<Book[]>("books", [])
+  const { deleteBookLoans } = useLoans()
 
   const addBook = (book: Omit<Book, "id">) => {
     const newBook = {
@@ -28,7 +30,13 @@ export function useBooks() {
   }
 
   const deleteBook = (id: string) => {
+    // First delete all associated loans
+    const deletedLoansCount = deleteBookLoans(id)
+
+    // Then delete the book
     setBooks((prevBooks) => prevBooks.filter((book) => book.id !== id))
+
+    return { deletedLoansCount }
   }
 
   const getBook = (id: string) => {

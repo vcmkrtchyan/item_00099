@@ -11,36 +11,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export function NewLoanContent() {
   const searchParams = useSearchParams()
-  const { books, loans } = useLibrary()
-  const [hasAvailableBooks, setHasAvailableBooks] = useState(true)
+  const { books } = useLibrary()
+  const [hasBooks, setHasBooks] = useState(true)
 
   const bookId = searchParams?.get("bookId") || ""
 
   useEffect(() => {
-    // Check if there are any books available for loan
-    const availableBooks = books.filter((book) => {
-      // Check if the book is already loaned
-      const isLoaned = loans.some((loan) => loan.bookId === book.id && !loan.returned)
-
-      return !isLoaned
-    })
-
-    setHasAvailableBooks(availableBooks.length > 0)
-  }, [books, loans])
+    // Check if there are any books in the library
+    setHasBooks(books.length > 0)
+  }, [books])
 
   return (
     <>
-      {!hasAvailableBooks ? (
+      {!hasBooks ? (
         <Card>
           <CardHeader>
             <CardTitle>No Books Available</CardTitle>
-            <CardDescription>All books in your library are currently on loan.</CardDescription>
+            <CardDescription>You don't have any books in your library yet.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              You need to add new books to your library or wait for some books to be returned before creating a new
-              loan.
-            </p>
+            <p className="text-muted-foreground">You need to add books to your library before you can create loans.</p>
           </CardContent>
           <CardFooter className="flex justify-between">
             <Link href="/loans">
