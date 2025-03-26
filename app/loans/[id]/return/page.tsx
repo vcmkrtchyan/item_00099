@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
-import { DateInput } from "@/components/ui/date-input"
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker"
+import { toast } from "sonner"
 
 export default function ReturnBookPage() {
   const params = useParams()
@@ -23,6 +23,7 @@ export default function ReturnBookPage() {
   const book = loan ? getBook(loan.bookId) : null
 
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0])
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   if (!loan) {
     return (
@@ -68,9 +69,9 @@ export default function ReturnBookPage() {
     // Update the loan with the return date
     returnBook(loanId, returnDate)
 
-    toast({
-      title: "Book Returned",
-      description: `${book?.title} has been marked as returned.`,
+    // Show toast notification using Sonner
+    toast(`${book?.title || "Book"} has been returned`, {
+      description: `Returned by ${loan.borrower} on ${returnDate}`,
     })
 
     router.push("/loans")
@@ -81,7 +82,7 @@ export default function ReturnBookPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Link href="/loans">
           <Button variant="outline" size="sm">
@@ -120,13 +121,16 @@ export default function ReturnBookPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="returnDate">Return Date</Label>
-                <DateInput
-                  id="returnDate"
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  onDateChange={handleDateChange}
-                  min={loan.loanDate}
-                  required
+                <SimpleDatePicker
+                  date={returnDate ? new Date(returnDate) : new Date()}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const dateString = date.toISOString().split("T")[0]
+                      setReturnDate(dateString)
+                    }
+                  }}
+                  minDate={loan ? new Date(loan.loanDate) : undefined}
+                  placeholder="Select return date"
                 />
               </div>
             </CardContent>

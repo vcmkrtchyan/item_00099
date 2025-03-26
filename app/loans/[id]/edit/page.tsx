@@ -6,7 +6,7 @@ import { EditLoanContent } from "@/components/loans/edit-loan-content"
 
 export default function EditLoanPage({ params }: { params: { id: string } }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Link href="/loans">
           <Button variant="outline" size="sm">

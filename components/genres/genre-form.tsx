@@ -1,68 +1,78 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { Genre } from "@/hooks/use-genres"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { useLibrary } from "@/context/library-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { toast } from "sonner"
 
 interface GenreFormProps {
   genreId?: string
 }
 
+// Create the genre schema
+const genreSchema = z.object({
+  name: z.string().min(1, "Genre name is required"),
+  description: z.string().optional(),
+})
+
+type GenreFormValues = z.infer<typeof genreSchema>
+
 export function GenreForm({ genreId }: GenreFormProps) {
   const router = useRouter()
   const { getGenre, addGenre, updateGenre, genres } = useLibrary()
 
-  const [formData, setFormData] = useState<Omit<Genre, "id">>({
-    name: "",
-    description: "",
+  // Initialize form
+  const form = useForm<GenreFormValues>({
+    resolver: zodResolver(genreSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
   })
 
-  const [error, setError] = useState<string | null>(null)
-
+  // Load existing genre data if in edit mode
   useEffect(() => {
     if (genreId) {
       const genre = getGenre(genreId)
       if (genre) {
-        setFormData({
+        form.reset({
           name: genre.name,
           description: genre.description,
         })
       }
     }
-  }, [genreId, getGenre])
+  }, [genreId, getGenre, form])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    setError(null) // Clear error when input changes
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
+  // Form submission handler
+  const onSubmit = (data: GenreFormValues) => {
     // Check if a genre with the same name already exists (case insensitive)
     const genreExists = genres.some(
-      (genre) => genre.name.toLowerCase() === formData.name.toLowerCase() && (!genreId || genre.id !== genreId),
+      (genre) => genre.name.toLowerCase() === data.name.toLowerCase() && (!genreId || genre.id !== genreId),
     )
 
     if (genreExists) {
-      // Show error message
-      setError("A genre with this name already exists. Please use a unique name.")
+      // Show error message using form validation
+      form.setError("name", {
+        type: "manual",
+        message: "A genre with this name already exists. Please use a unique name.",
+      })
       return
     }
 
     if (genreId) {
-      updateGenre(genreId, formData)
+      updateGenre(genreId, data)
+      toast(`Genre "${data.name}" updated successfully`)
     } else {
-      addGenre(formData)
+      addGenre(data)
+      toast(`Genre "${data.name}" added successfully`)
     }
 
     router.push("/genres")
@@ -70,42 +80,53 @@ export function GenreForm({ genreId }: GenreFormProps) {
 
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
-        <CardHeader>
-          <CardTitle>{genreId ? "Edit Genre" : "Add New Genre"}</CardTitle>
-          <CardDescription>
-            {genreId ? "Update the genre details" : "Enter the details for a new genre"}
-          </CardDescription>
-          {error && (
-            <div className="mt-3 p-3 bg-destructive/10 border border-destructive text-destructive text-sm rounded-md">
-              {error}
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={4}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle>{genreId ? "Edit Genre" : "Add New Genre"}</CardTitle>
+            <CardDescription>
+              {genreId ? "Update the genre details" : "Enter the details for a new genre"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormDescription>Enter a unique name for this genre</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit">{genreId ? "Update Genre" : "Add Genre"}</Button>
-        </CardFooter>
-      </form>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} rows={4} value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>Provide a brief description of this genre (optional)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit">{genreId ? "Update Genre" : "Add Genre"}</Button>
+          </CardFooter>
+        </form>
+      </Form>
     </Card>
   )
 }

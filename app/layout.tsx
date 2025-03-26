@@ -6,7 +6,8 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { LibraryProvider } from "@/context/library-context"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster as UIToaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -34,7 +35,8 @@ export default function RootLayout({
               <main className="flex-1 max-w-7xl mx-auto w-full py-4 md:py-6">{children}</main>
               <Footer />
             </div>
-            <Toaster />
+            <UIToaster />
+            <Toaster position="bottom-right" />
           </LibraryProvider>
         </ThemeProvider>
       </body>

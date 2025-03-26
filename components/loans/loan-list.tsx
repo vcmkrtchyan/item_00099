@@ -8,11 +8,15 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Edit, CheckCircle, Trash, Calendar } from "lucide-react"
+import { Plus, Search, Edit, CheckCircle, Trash, Calendar, ArrowDown, ArrowUp } from "lucide-react"
 import Link from "next/link"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+
+type SortColumn = "book" | "borrower" | "loanDate" | "dueDate" | "status"
+type SortDirection = "asc" | "desc"
 
 export function LoanList() {
   const { loans, books, getBook, returnBook, deleteLoan, getLoanStatus } = useLibrary()
@@ -21,6 +25,23 @@ export function LoanList() {
   const [loanToReturn, setLoanToReturn] = useState<string | null>(null)
   const [loanToDelete, setLoanToDelete] = useState<string | null>(null)
 
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<SortColumn>("loanDate")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+
+  // Handle sort column click
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column)
+      setSortDirection("asc")
+    }
+  }
+
+  // Filter loans based on search and status
   const filteredLoans = loans.filter((loan) => {
     const book = getBook(loan.bookId)
     const matchesSearch =
@@ -41,6 +62,36 @@ export function LoanList() {
     return matchesSearch && matchesStatus
   })
 
+  // Sort the filtered loans
+  const sortedLoans = [...filteredLoans].sort((a, b) => {
+    const bookA = getBook(a.bookId)
+    const bookB = getBook(b.bookId)
+    const statusA = getLoanStatus(a)
+    const statusB = getLoanStatus(b)
+
+    let comparison = 0
+
+    switch (sortColumn) {
+      case "book":
+        comparison = (bookA?.title || "").localeCompare(bookB?.title || "")
+        break
+      case "borrower":
+        comparison = a.borrower.localeCompare(b.borrower)
+        break
+      case "loanDate":
+        comparison = new Date(a.loanDate).getTime() - new Date(b.loanDate).getTime()
+        break
+      case "dueDate":
+        comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        break
+      case "status":
+        comparison = statusA.localeCompare(statusB)
+        break
+    }
+
+    return sortDirection === "asc" ? comparison : -comparison
+  })
+
   const handleReturnBook = () => {
     if (loanToReturn) {
       const loan = getLoan(loanToReturn)
@@ -48,11 +99,9 @@ export function LoanList() {
 
       returnBook(loanToReturn)
 
-      // Show toast notification
-      toast({
-        title: "Book Returned",
-        description: book ? `"${book.title}" has been returned successfully.` : "Book has been returned successfully.",
-        variant: "success",
+      // Show toast notification using Sonner instead of UI toast
+      toast(`${book ? book.title : "Book"} has been returned`, {
+        description: `Returned by ${loan?.borrower || "borrower"}`,
       })
 
       setLoanToReturn(null)
@@ -61,18 +110,8 @@ export function LoanList() {
 
   const handleDeleteLoan = () => {
     if (loanToDelete) {
-      const loan = getLoan(loanToDelete)
-      const book = loan ? getBook(loan.bookId) : null
-
+      // Delete the loan (the toast is handled in the hook)
       deleteLoan(loanToDelete)
-
-      // Show toast notification
-      toast({
-        title: "Loan Deleted",
-        description: book ? `Loan for "${book.title}" has been deleted.` : "Loan has been deleted.",
-        variant: "success",
-      })
-
       setLoanToDelete(null)
     }
   }
@@ -103,21 +142,33 @@ export function LoanList() {
     }
   }
 
+  // Render sort indicator
+  const renderSortIndicator = (column: SortColumn) => {
+    if (sortColumn !== column) return null
+
+    return sortDirection === "asc" ? (
+      <ArrowUp className="ml-1 h-4 w-4 inline" />
+    ) : (
+      <ArrowDown className="ml-1 h-4 w-4 inline" />
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 items-end justify-between">
-        <div className="flex-1 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by book title or borrower..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
+      <div className="flex flex-col gap-4">
+        <div className="w-full relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by book title or borrower..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Select value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -129,13 +180,14 @@ export function LoanList() {
               <SelectItem value="returned">Returned</SelectItem>
             </SelectContent>
           </Select>
+
+          <Link href="/loans/new" className="w-full sm:w-auto">
+            <Button className="w-full">
+              <Plus className="mr-2 h-4 w-4" />
+              New Loan
+            </Button>
+          </Link>
         </div>
-        <Link href="/loans/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Loan
-          </Button>
-        </Link>
       </div>
 
       <Card>
@@ -143,7 +195,7 @@ export function LoanList() {
           <CardTitle>Loans</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredLoans.length === 0 ? (
+          {sortedLoans.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-muted-foreground">No loans found. Try adjusting your filters or create a new loan.</p>
             </div>
@@ -152,16 +204,26 @@ export function LoanList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Book</TableHead>
-                    <TableHead>Borrower</TableHead>
-                    <TableHead>Loan Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("book")}>
+                      Book {renderSortIndicator("book")}
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("borrower")}>
+                      Borrower {renderSortIndicator("borrower")}
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("loanDate")}>
+                      Loan Date {renderSortIndicator("loanDate")}
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("dueDate")}>
+                      Due Date {renderSortIndicator("dueDate")}
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("status")}>
+                      Status {renderSortIndicator("status")}
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLoans.map((loan) => {
+                  {sortedLoans.map((loan) => {
                     const book = getBook(loan.bookId)
                     const status = getLoanStatus(loan)
                     const isScheduled = status === "scheduled"
@@ -173,8 +235,8 @@ export function LoanList() {
                         <TableCell>{loan.loanDate}</TableCell>
                         <TableCell>{loan.dueDate}</TableCell>
                         <TableCell>{getLoanStatusBadge(loan)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="text-right">
+                          <div className={cn("flex gap-2", "justify-end")}>
                             {!loan.returned && (
                               <Link href={`/loans/${loan.id}/edit`}>
                                 <Button variant="outline" size="sm">

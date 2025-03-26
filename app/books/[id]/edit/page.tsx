@@ -11,7 +11,7 @@ export default function EditBookPage() {
   const bookId = params.id as string
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto px-4 sm:px-6">
+    <div className="space-y-6 px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Link href={`/books/${bookId}`}>
           <Button variant="outline" size="sm">

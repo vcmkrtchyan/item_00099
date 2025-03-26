@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash, BookOpen, CheckCircle, Calendar } from "lucide-react"
 import Link from "next/link"
-import { toast } from "@/components/ui/use-toast"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { BookPlaceholder } from "./book-placeholder"
+import { toast } from "sonner"
 
 interface BookDetailProps {
   book: Book
@@ -21,8 +21,7 @@ interface BookDetailProps {
 
 export function BookDetail({ book }: BookDetailProps) {
   const router = useRouter()
-  const { deleteBook, genres, loans, returnBook, bulkDeleteLoans, isBookCurrentlyLoaned, hasScheduledLoans } =
-    useLibrary()
+  const { deleteBook, genres, loans, returnBook, isBookCurrentlyLoaned, hasScheduledLoans } = useLibrary()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReturnDialog, setShowReturnDialog] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -84,38 +83,16 @@ export function BookDetail({ book }: BookDetailProps) {
 
   const handleDelete = () => {
     try {
-      // First, collect all loan IDs associated with this book
-      const loanIdsToDelete = loans.filter((loan) => loan.bookId === book.id).map((loan) => loan.id)
+      console.log("Deleting book:", book.id)
 
-      const loanCount = loanIdsToDelete.length
-
-      // Delete all associated loans in one operation
-      if (loanCount > 0) {
-        bulkDeleteLoans(loanIdsToDelete)
-      }
-
-      // Then delete the book
-      deleteBook(book.id)
-
-      // Show success message
-      toast({
-        title: "Book Deleted",
-        description:
-          loanCount > 0
-            ? `The book and ${loanCount} associated loan${loanCount === 1 ? "" : "s"} have been deleted.`
-            : "The book has been successfully deleted.",
-        variant: "success",
-      })
+      // Delete the book (the toast with undo is now handled in the hook)
+      const result = deleteBook(book.id)
+      console.log("Delete result:", result)
 
       // Navigate back to the books list
       router.push("/")
     } catch (error) {
       console.error("Error deleting book:", error)
-      toast({
-        title: "Error",
-        description: "There was a problem deleting the book. Please try again.",
-        variant: "destructive",
-      })
     }
   }
 
@@ -127,10 +104,9 @@ export function BookDetail({ book }: BookDetailProps) {
     if (activeLoan) {
       returnBook(activeLoan.id)
 
-      toast({
-        title: "Book Returned",
-        description: `"${book.title}" has been returned successfully.`,
-        variant: "success",
+      // Show toast notification using Sonner
+      toast(`${book?.title || "Book"} has been returned`, {
+        description: `Returned by ${activeLoan.borrower}`,
       })
 
       setShowReturnDialog(false)

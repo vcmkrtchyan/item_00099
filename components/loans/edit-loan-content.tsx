@@ -28,7 +28,7 @@ export function EditLoanContent({ loanId }: EditLoanContentProps) {
   }, [loanId, getLoan, router])
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-4 sm:px-0">
       <LoanForm loanId={loanId} />
     </div>
   )

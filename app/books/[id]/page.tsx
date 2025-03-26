@@ -25,7 +25,7 @@ export default function BookDetailPage() {
 
   if (!book) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <Link href="/">
             <Button variant="outline" size="sm">
@@ -43,7 +43,7 @@ export default function BookDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Link href="/">
           <Button variant="outline" size="sm">

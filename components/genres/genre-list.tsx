@@ -11,7 +11,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 export function GenreList() {
-  const { genres, deleteGenre, books } = useLibrary()
+  const { genres, books, deleteGenre } = useLibrary()
   const [searchTerm, setSearchTerm] = useState("")
   const [genreToDelete, setGenreToDelete] = useState<string | null>(null)
 
@@ -22,10 +22,13 @@ export function GenreList() {
   }
 
   const handleDeleteGenre = () => {
-    if (genreToDelete) {
-      deleteGenre(genreToDelete)
-      setGenreToDelete(null)
-    }
+    if (!genreToDelete) return
+
+    // Delete the genre (the toast with undo is now handled in the hook)
+    deleteGenre(genreToDelete)
+
+    // Clear the dialog state
+    setGenreToDelete(null)
   }
 
   return (

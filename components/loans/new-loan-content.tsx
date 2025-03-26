@@ -24,7 +24,7 @@ export function NewLoanContent() {
   return (
     <>
       {!hasBooks ? (
-        <Card>
+        <Card className="mx-4 sm:mx-0">
           <CardHeader>
             <CardTitle>No Books Available</CardTitle>
             <CardDescription>You don't have any books in your library yet.</CardDescription>
@@ -45,7 +45,7 @@ export function NewLoanContent() {
           </CardFooter>
         </Card>
       ) : (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto px-4 sm:px-0">
           <LoanForm initialBookId={bookId} />
         </div>
       )}

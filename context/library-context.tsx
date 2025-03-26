@@ -10,14 +10,14 @@ interface LibraryContextType {
   books: Book[]
   addBook: (book: Omit<Book, "id">) => Book
   updateBook: (id: string, book: Partial<Book>) => void
-  deleteBook: (id: string) => void
+  deleteBook: (id: string) => { deletedLoansCount: number }
   getBook: (id: string) => Book | undefined
 
   // Genres
   genres: Genre[]
   addGenre: (genre: Omit<Genre, "id">) => Genre
   updateGenre: (id: string, genre: Partial<Genre>) => void
-  deleteGenre: (id: string) => void
+  deleteGenre: (id: string) => boolean
   getGenre: (id: string) => Genre | undefined
 
   // Loans
@@ -29,6 +29,10 @@ interface LibraryContextType {
   returnBook: (id: string) => void
   getActiveLoans: () => Loan[]
   getOverdueLoans: () => Loan[]
+  isBookCurrentlyLoaned: (bookId: string) => boolean
+  hasScheduledLoans: (bookId: string) => boolean
+  isBookAvailableForPeriod: (bookId: string, startDate: string, endDate: string, excludeLoanId?: string) => boolean
+  getLoanStatus: (loan: Loan) => any
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined)
