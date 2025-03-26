@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { validateISBN, validateImageUrl } from "@/lib/validation"
 import { DateInput } from "@/components/ui/date-input"
 import { toast } from "@/components/ui/use-toast"
-import { LockIcon, BookIcon, LightbulbIcon } from "lucide-react"
+import { LockIcon, BookIcon, LightbulbIcon, ChevronsUpDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface BookFormProps {
   bookId?: string
@@ -38,6 +39,7 @@ export function BookForm({ bookId }: BookFormProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [autoFilledBook, setAutoFilledBook] = useState<Book | null>(null)
   const [lastCheckedISBN, setLastCheckedISBN] = useState<string>("")
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false)
 
   // Add validation state
   const [errors, setErrors] = useState<{
@@ -198,17 +200,6 @@ export function BookForm({ bookId }: BookFormProps) {
     }
   }
 
-  const handleGenreChange = (genreId: string, checked: boolean) => {
-    // Only allow genre changes if not auto-filled or in edit mode
-    if (!autoFilledBook || bookId) {
-      if (checked) {
-        setSelectedGenres((prev) => [...prev, genreId])
-      } else {
-        setSelectedGenres((prev) => prev.filter((id) => id !== genreId))
-      }
-    }
-  }
-
   // Update the handleCoverImageBlur function to use the simplified validation
   const handleCoverImageBlur = () => {
     const { coverImageUrl } = formData
@@ -221,6 +212,15 @@ export function BookForm({ bookId }: BookFormProps) {
       }))
     } else {
       setErrors((prev) => ({ ...prev, coverImageUrl: undefined }))
+    }
+  }
+
+  // Handle genre checkbox change
+  const handleGenreChange = (genreId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedGenres((prev) => [...prev, genreId])
+    } else {
+      setSelectedGenres((prev) => prev.filter((id) => id !== genreId))
     }
   }
 
@@ -287,6 +287,31 @@ export function BookForm({ bookId }: BookFormProps) {
 
   // Determine if fields should be read-only
   const isReadOnly = autoFilledBook !== null && !bookId
+
+  // Get genre names for display
+  const getGenreNames = (ids: string[]) => {
+    return ids
+      .map((id) => {
+        const genre = genres.find((g) => g.id === id)
+        return genre ? genre.name : ""
+      })
+      .filter(Boolean)
+  }
+
+  // Close genre dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showGenreDropdown && !target.closest(".genre-dropdown-container")) {
+        setShowGenreDropdown(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [showGenreDropdown])
 
   return (
     <Card className="w-full">
@@ -452,25 +477,67 @@ export function BookForm({ bookId }: BookFormProps) {
               Genres
               {isReadOnly && <LockIcon className="h-3 w-3 text-muted-foreground" />}
             </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-              {genres.map((genre) => (
-                <div key={genre.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`genre-${genre.id}`}
-                    checked={selectedGenres.includes(genre.id)}
-                    onCheckedChange={(checked) => handleGenreChange(genre.id, checked as boolean)}
-                    disabled={isReadOnly}
-                    className={isReadOnly ? "cursor-not-allowed" : ""}
-                  />
-                  <Label
-                    htmlFor={`genre-${genre.id}`}
-                    className={isReadOnly ? "cursor-not-allowed text-muted-foreground" : ""}
-                  >
-                    {genre.name}
-                  </Label>
-                </div>
-              ))}
-            </div>
+
+            {isReadOnly ? (
+              <div className="p-2 border rounded-md bg-muted flex flex-wrap gap-2">
+                {selectedGenres.length > 0 ? (
+                  getGenreNames(selectedGenres).map((name, index) => (
+                    <Badge key={index} variant="secondary">
+                      {name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">No genres selected</span>
+                )}
+              </div>
+            ) : (
+              <div className="relative genre-dropdown-container">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between h-auto min-h-10"
+                  onClick={() => setShowGenreDropdown(!showGenreDropdown)}
+                >
+                  <div className="flex flex-wrap gap-1 py-0.5">
+                    {selectedGenres.length > 0 ? (
+                      getGenreNames(selectedGenres).map((name, index) => (
+                        <Badge key={index} variant="secondary" className="mr-1">
+                          {name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">Select genres</span>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+
+                {showGenreDropdown && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover p-4 shadow-md">
+                    {genres.length === 0 ? (
+                      <div className="py-2 text-center text-sm text-muted-foreground">
+                        No genres available. Add some genres first.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {genres.map((genre) => (
+                          <div key={genre.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`genre-${genre.id}`}
+                              checked={selectedGenres.includes(genre.id)}
+                              onCheckedChange={(checked) => handleGenreChange(genre.id, checked as boolean)}
+                            />
+                            <Label htmlFor={`genre-${genre.id}`} className="text-sm cursor-pointer">
+                              {genre.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="px-6 py-5 flex justify-between border-t mt-4">

@@ -18,12 +18,14 @@ interface GenreFormProps {
 
 export function GenreForm({ genreId }: GenreFormProps) {
   const router = useRouter()
-  const { getGenre, addGenre, updateGenre } = useLibrary()
+  const { getGenre, addGenre, updateGenre, genres } = useLibrary()
 
   const [formData, setFormData] = useState<Omit<Genre, "id">>({
     name: "",
     description: "",
   })
+
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (genreId) {
@@ -40,10 +42,22 @@ export function GenreForm({ genreId }: GenreFormProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setError(null) // Clear error when input changes
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check if a genre with the same name already exists (case insensitive)
+    const genreExists = genres.some(
+      (genre) => genre.name.toLowerCase() === formData.name.toLowerCase() && (!genreId || genre.id !== genreId),
+    )
+
+    if (genreExists) {
+      // Show error message
+      setError("A genre with this name already exists. Please use a unique name.")
+      return
+    }
 
     if (genreId) {
       updateGenre(genreId, formData)
@@ -62,6 +76,11 @@ export function GenreForm({ genreId }: GenreFormProps) {
           <CardDescription>
             {genreId ? "Update the genre details" : "Enter the details for a new genre"}
           </CardDescription>
+          {error && (
+            <div className="mt-3 p-3 bg-destructive/10 border border-destructive text-destructive text-sm rounded-md">
+              {error}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

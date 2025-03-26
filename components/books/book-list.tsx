@@ -27,53 +27,56 @@ export function BookList() {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="grid grid-cols-12 gap-4">
-          {/* Search input - takes 10 columns */}
-          <div className="col-span-10 relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by title or author..."
-              className="pl-8 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+        <div className="space-y-4">
+          {/* Search and filters section */}
+          <div className="flex flex-col gap-4">
+            {/* Search input and Add Book button */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by title or author..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-[140px]">
+                <Link href="/create-book" className="block">
+                  <Button size="sm" className="w-full">
+                    <Book className="mr-2 h-4 w-4" />
+                    Add Book
+                  </Button>
+                </Link>
+              </div>
+            </div>
 
-          {/* Add Book button - takes 2 columns */}
-          <div className="col-span-2">
-            <Link href="/create-book" className="block">
-              <Button size="sm" className="w-full">
-                <Book className="mr-2 h-4 w-4" />
-                Add Book
-              </Button>
-            </Link>
-          </div>
-
-          {/* Genre filter - takes 10 columns */}
-          <div className="col-span-10">
-            <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by genre" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Genres</SelectItem>
-                {genres.map((genre) => (
-                  <SelectItem key={genre.id} value={genre.id}>
-                    {genre.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Add Genre button - takes 2 columns */}
-          <div className="col-span-2">
-            <Link href="/genres/new" className="block">
-              <Button variant="outline" size="sm" className="w-full">
-                <Bookmark className="mr-2 h-4 w-4" />
-                Add Genre
-              </Button>
-            </Link>
+            {/* Genre filter and Add Genre button */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Filter by genre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Genres</SelectItem>
+                    {genres.map((genre) => (
+                      <SelectItem key={genre.id} value={genre.id}>
+                        {genre.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full sm:w-[140px]">
+                <Link href="/genres/new" className="block">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Bookmark className="mr-2 h-4 w-4" />
+                    Add Genre
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

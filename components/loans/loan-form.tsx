@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateInput } from "@/components/ui/date-input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Calendar, Info, BookOpen, History } from "lucide-react"
+import { z } from "zod"
 
 interface LoanFormProps {
   loanId?: string
@@ -144,6 +145,9 @@ export function LoanForm({ loanId, initialBookId = "" }: LoanFormProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+
+    // Clear error for this field
+    setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
   // Update the handleDateChange function to validate date conflicts immediately
@@ -351,100 +355,135 @@ export function LoanForm({ loanId, initialBookId = "" }: LoanFormProps) {
     return true
   }
 
+  // Create a Zod schema for form validation
+  const createLoanSchema = (bookId: string) => {
+    // Get the book to check its publishing date
+    const book = bookId ? getBook(bookId) : null
+    const publishingDate = book?.publishedDate || "1900-01-01"
+
+    return z
+      .object({
+        bookId: z.string().min(1, "Please select a book"),
+        borrower: z.string().min(1, "Borrower name is required"),
+        loanDate: z
+          .string()
+          .min(1, "Loan date is required")
+          .refine(
+            (date) => {
+              if (!date) return false
+              const loanDateObj = new Date(date)
+              const publishingDateObj = new Date(publishingDate)
+              return loanDateObj >= publishingDateObj
+            },
+            {
+              message: `Loan date cannot be before the book's publishing date (${publishingDate})`,
+            },
+          ),
+        dueDate: z.string().min(1, "Due date is required"),
+      })
+      .refine(
+        (data) => {
+          if (!data.loanDate || !data.dueDate) return true
+          const loanDateObj = new Date(data.loanDate)
+          const dueDateObj = new Date(data.dueDate)
+          return loanDateObj <= dueDateObj
+        },
+        {
+          message: "Loan date cannot be after due date",
+          path: ["dateConflict"],
+        },
+      )
+      .refine(
+        (data) => {
+          if (!data.bookId || !data.loanDate || !data.dueDate) return true
+
+          // Skip this check if we're editing the current loan
+          if (isEditMode && data.bookId === formData.bookId) return true
+
+          // Check if this is a historical loan
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+
+          const loanDateObj = new Date(data.loanDate)
+          loanDateObj.setHours(0, 0, 0, 0)
+
+          const dueDateObj = new Date(data.dueDate)
+          dueDateObj.setHours(0, 0, 0, 0)
+
+          const isHistoricalLoan = loanDateObj < today && dueDateObj < today
+
+          // If the book is currently on loan and this is not a historical loan,
+          // ensure the loan date is in the future
+          if (isBookCurrentlyLoaned(data.bookId) && !isHistoricalLoan) {
+            return loanDateObj > today
+          }
+
+          return true
+        },
+        {
+          message: "This book is currently on loan. You can only schedule a future loan or add a historical record.",
+          path: ["dateConflict"],
+        },
+      )
+      .refine(
+        (data) => {
+          if (!data.bookId || !data.loanDate || !data.dueDate) return true
+          return isBookAvailableForPeriod(data.bookId, data.loanDate, data.dueDate, loanId)
+        },
+        {
+          message: "This book is already loaned during part of this period",
+          path: ["dateConflict"],
+        },
+      )
+  }
+
   const validateForm = (): boolean => {
-    const newErrors: {
-      bookId?: string
-      borrower?: string
-      loanDate?: string
-      dueDate?: string
-      dateConflict?: string
-      dateConflictDetails?: string
-    } = {}
+    // Create the schema based on current form data
+    const schema = createLoanSchema(formData.bookId)
 
-    // Validate book selection
-    if (!formData.bookId) {
-      newErrors.bookId = "Please select a book"
-    }
+    // Reset errors
+    setErrors({})
 
-    // Validate loan date
-    if (!formData.loanDate) {
-      newErrors.loanDate = "Loan date is required"
-    }
+    try {
+      // Validate the form data against the schema
+      schema.parse(formData)
 
-    // Validate due date
-    if (!formData.dueDate) {
-      newErrors.dueDate = "Due date is required"
-    }
+      // If we get here, validation passed
+      return true
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Convert Zod errors to our error format
+        const newErrors: Record<string, string> = {}
 
-    // Validate borrower
-    if (!formData.borrower.trim()) {
-      newErrors.borrower = "Borrower name is required"
-    }
-
-    // Validate date range if we have both dates
-    if (formData.bookId && formData.loanDate && formData.dueDate) {
-      const book = getBook(formData.bookId)
-      if (book) {
-        // Check if loan date is before the book's publishing date
-        const loanDateObj = new Date(formData.loanDate)
-        const publishingDateObj = new Date(book.publishedDate)
-        publishingDateObj.setHours(0, 0, 0, 0)
-
-        if (loanDateObj < publishingDateObj) {
-          newErrors.dateConflict = `Loan date cannot be before the book's publishing date (${book.publishedDate})`
-        }
-        // Check if loan date is after due date
-        else {
-          const dueDateObj = new Date(formData.dueDate)
-
-          if (loanDateObj > dueDateObj) {
-            newErrors.dateConflict = "Loan date cannot be after due date"
+        error.errors.forEach((err) => {
+          if (err.path.length > 0) {
+            const path = err.path[0].toString()
+            newErrors[path] = err.message
           }
-          // If the book is currently on loan, ensure the loan date is in the future
-          // But skip this check if we're editing the current loan for this book
-          // OR if this is a historical loan (both loan date and due date are in the past)
-          else if (isBookCurrentlyLoaned(formData.bookId) && !(isEditMode && formData.bookId === book.id)) {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
+        })
 
-            // Check if this is a historical loan (both dates in the past)
-            const isHistoricalLoan = loanDateObj < today && dueDateObj < today
+        // If we have a date conflict, check for conflicting loans to show details
+        if (newErrors.dateConflict && formData.bookId && formData.loanDate && formData.dueDate) {
+          const conflictingLoans = findConflictingLoans(formData.bookId, formData.loanDate, formData.dueDate)
 
-            // Only apply the restriction for non-historical loans
-            if (loanDateObj <= today && !isHistoricalLoan) {
-              newErrors.dateConflict =
-                "This book is currently on loan. You can only schedule a future loan or add a historical record."
-            }
+          if (conflictingLoans.length > 0) {
+            // Format the dates of conflicting loans for display
+            const conflictDetails = conflictingLoans
+              .map((loan) => {
+                const status = loan.returned ? " (historical)" : ""
+                return `${loan.borrower}: ${loan.loanDate} to ${loan.dueDate}${status}`
+              })
+              .join(", ")
+
+            newErrors.dateConflictDetails = conflictDetails
           }
         }
+
+        setErrors(newErrors)
       }
 
-      // Check for conflicts with existing loans
-      if (
-        !newErrors.dateConflict &&
-        !isBookAvailableForPeriod(formData.bookId, formData.loanDate, formData.dueDate, loanId)
-      ) {
-        newErrors.dateConflict = "This book is already loaned during part of this period"
-
-        // Find and display conflicting loans
-        const conflictingLoans = findConflictingLoans(formData.bookId, formData.loanDate, formData.dueDate)
-
-        if (conflictingLoans.length > 0) {
-          // Format the dates of conflicting loans for display
-          const conflictDetails = conflictingLoans
-            .map((loan) => {
-              const status = loan.returned ? " (historical)" : ""
-              return `${loan.borrower}: ${loan.loanDate} to ${loan.dueDate}${status}`
-            })
-            .join(", ")
-
-          newErrors.dateConflictDetails = conflictDetails
-        }
-      }
+      return false
     }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -456,6 +495,8 @@ export function LoanForm({ loanId, initialBookId = "" }: LoanFormProps) {
       // Focus the first error field
       if (errors.bookId && !isEditMode) {
         document.getElementById("book-select")?.focus()
+      } else if (errors.borrower) {
+        document.getElementById("borrower")?.focus()
       } else if (errors.dateConflict) {
         // Scroll to the date conflict error
         const errorElement = document.getElementById("date-conflict-error")
@@ -654,6 +695,7 @@ export function LoanForm({ loanId, initialBookId = "" }: LoanFormProps) {
               onDateChange={(value) => handleDateChange("loanDate", value)}
               min={selectedBook ? selectedBook.publishedDate : undefined}
               required
+              className={isSubmitted && errors.loanDate ? "border-destructive ring-destructive" : ""}
             />
             {isSubmitted && errors.loanDate && <p className="text-sm text-destructive mt-1">{errors.loanDate}</p>}
             {selectedBook && (
@@ -675,6 +717,7 @@ export function LoanForm({ loanId, initialBookId = "" }: LoanFormProps) {
               onDateChange={(value) => handleDateChange("dueDate", value)}
               required
               min={formData.loanDate}
+              className={isSubmitted && errors.dueDate ? "border-destructive ring-destructive" : ""}
             />
             {isSubmitted && errors.dueDate && <p className="text-sm text-destructive mt-1">{errors.dueDate}</p>}
           </div>

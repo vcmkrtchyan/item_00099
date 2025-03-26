@@ -30,22 +30,25 @@ export function GenreList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 items-end justify-between">
-        <div className="relative flex-1">
+      {/* Search and Add Genre section */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search genres..."
-            className="pl-8"
+            className="pl-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Link href="/genres/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Genre
-          </Button>
-        </Link>
+        <div className="w-full sm:w-auto">
+          <Link href="/genres/new" className="block">
+            <Button className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Genre
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {filteredGenres.length === 0 ? (
@@ -58,22 +61,22 @@ export function GenreList() {
             const bookCount = getBookCountByGenre(genre.id)
 
             return (
-              <Card key={genre.id}>
-                <CardHeader>
-                  <CardTitle>{genre.name}</CardTitle>
+              <Card key={genre.id} className="flex flex-col">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl">{genre.name}</CardTitle>
                   <CardDescription className="flex items-center gap-1">
                     <Book className="h-4 w-4" />
                     {bookCount} {bookCount === 1 ? "book" : "books"}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                   <p className="text-muted-foreground line-clamp-3">
                     {genre.description || "No description available."}
                   </p>
                 </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Link href={`/genres/${genre.id}/edit`}>
-                    <Button variant="outline" size="sm">
+                <CardFooter className="pt-2 flex flex-wrap gap-2 justify-between">
+                  <Link href={`/genres/${genre.id}/edit`} className="flex-grow sm:flex-grow-0">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
@@ -89,7 +92,12 @@ export function GenreList() {
                     onConfirm={handleDeleteGenre}
                   >
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" onClick={() => setGenreToDelete(genre.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setGenreToDelete(genre.id)}
+                        className="flex-grow sm:flex-grow-0 w-full sm:w-auto"
+                      >
                         <Trash className="h-4 w-4 mr-2" />
                         Delete
                       </Button>
